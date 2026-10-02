@@ -2,6 +2,8 @@
 
 > **A Realistic Banking Application Built for Playwright Automation Practice**
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/shashankpanditQA/parabank)
+
 ParaBank Pro is a full-stack banking app (React + Express + SQLite) designed for learning Playwright from beginner to expert. Everything is real: real `<iframe>`s, real `alert()` / `confirm()` / `prompt()` / `beforeunload` dialogs, real `window.open()` popups, a real REST API with dynamic JSON, and a real database — plus **105 challenges** with hints and executable solutions.
 
 ```
@@ -435,7 +437,7 @@ The app is a single Node service with a file-based database — any Node host wo
 Or use the button (replace the repo URL):
 
 ```md
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/<you>/parabank-pro)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/shashankpanditQA/parabank)
 ```
 
 Free-tier notes: the service sleeps after ~15 minutes idle (first request takes ~30–60 s) and the disk is ephemeral — the database is re-seeded automatically after a restart or redeploy, which is perfect for a practice lab.
