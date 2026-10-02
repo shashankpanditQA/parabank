@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Secure Payment Gateway | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>ParaBank Pro</h1><span class="tag">Secure checkout · popup window</span></header>
+<main>
+  <div class="card">
+    <h2>Secure Payment Gateway</h2>
+    <div class="summary"><span>Merchant</span><strong id="merchant"></strong></div>
+    <div class="summary"><span>Amount</span><strong id="amount" data-testid="checkout-amount"></strong></div>
+    <div class="summary"><span>Reference</span><strong id="reference"></strong></div>
+  </div>
+  <div class="frame-label">iframe: Card payment form</div>
+  <iframe id="payment-frame" name="payment-frame" data-testid="payment-frame" title="Card payment form" height="560"></iframe>
+  <div id="checkout-result" role="status" aria-live="polite"></div>
+  <div class="actions"><button class="secondary" id="close-window" type="button">Close Window</button></div>
+</main>
+<script>
+  const params = new URLSearchParams(location.search);
+  const amount = Number(params.get('amount') || 250);
+  const merchant = params.get('merchant') || 'ParaBank Secure Merchant';
+  const ref = params.get('ref') || 'CHK-' + Math.floor(100000 + Math.random() * 900000);
+  document.getElementById('merchant').textContent = merchant;
+  document.getElementById('amount').textContent = '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  document.getElementById('reference').textContent = ref;
+  document.getElementById('payment-frame').src = '/payment-gateway?mode=otp&amount=' + encodeURIComponent(amount) + '&merchant=' + encodeURIComponent(merchant) + '&ref=' + encodeURIComponent(ref);
+
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || e.data?.type !== 'parabank:payment') return;
+    const box = document.getElementById('checkout-result');
+    box.innerHTML = e.data.ok
+      ? '<div class="alert success"><strong>Payment Complete</strong> — you can close this window.</div>'
+      : '<div class="alert danger">' + (e.data.body?.message || 'Payment failed') + '</div>';
+    // Relay to the main banking window that opened this popup.
+    if (window.opener && !window.opener.closed) window.opener.postMessage(e.data, location.origin);
+  });
+  document.getElementById('close-window').addEventListener('click', () => window.close());
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bank Policy | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>ParaBank Pro</h1><span class="tag">Policy window</span></header>
+<main>
+  <h1 style="font-size:22px;margin:4px 0 16px">Bank Policy</h1>
+  <p class="muted">Version 4.2 · Effective <span id="effective-date">January 1, 2026</span></p>
+  <nav class="card" aria-label="Policy sections">
+    <a href="#privacy">Privacy Policy</a> · <a href="#fees">Fee Schedule</a> · <a href="#transfers">Transfer Limits</a> · <a href="#security">Security</a>
+  </nav>
+  <section class="card" id="privacy">
+    <h2>Privacy Policy</h2>
+    <p>We collect only the information required to provide banking services. We never sell customer data to third parties.</p>
+  </section>
+  <section class="card" id="fees">
+    <h2>Fee Schedule</h2>
+    <table data-testid="fee-table">
+      <thead><tr><th>Service</th><th class="num">Fee</th></tr></thead>
+      <tbody>
+        <tr><td>Monthly maintenance (balance under $1,500)</td><td class="num">$12.00</td></tr>
+        <tr><td>Domestic wire transfer</td><td class="num">$25.00</td></tr>
+        <tr><td>International wire transfer</td><td class="num">$45.00</td></tr>
+        <tr><td>Overdraft protection</td><td class="num">$35.00</td></tr>
+        <tr><td>Replacement card</td><td class="num">$5.00</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="card" id="transfers">
+    <h2>Transfer Limits</h2>
+    <ul>
+      <li>Per transfer: <strong>$1,000,000</strong></li>
+      <li>Bill payments: <strong>$50,000</strong> per payment</li>
+      <li>Duplicate transfers within 60 seconds are blocked.</li>
+    </ul>
+  </section>
+  <section class="card" id="security">
+    <h2>Security</h2>
+    <p>Sessions expire after 30 minutes of inactivity (7 days with “Remember me”). Card payments above $100 require OTP verification.</p>
+    <label><input type="checkbox" id="accept-policy" style="width:auto" /> I have read and accept the bank policy</label>
+    <div class="actions"><button class="primary" id="acknowledge" type="button" disabled>Acknowledge</button></div>
+    <div id="ack-status" role="status"></div>
+  </section>
+</main>
+<script>
+  const cb = document.getElementById('accept-policy');
+  const btn = document.getElementById('acknowledge');
+  cb.addEventListener('change', () => (btn.disabled = !cb.checked));
+  btn.addEventListener('click', () => {
+    document.getElementById('ack-status').innerHTML = '<div class="alert success">Policy acknowledged on ' + new Date().toLocaleString() + '</div>';
+  });
+</script>
+</body>
+</html>

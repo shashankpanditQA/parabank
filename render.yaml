@@ -1,0 +1,16 @@
+services:
+  # Free Render web service: one Node process serves the React app, the REST API,
+  # the iframe/popup pages and the SQLite database.
+  - type: web
+    name: parabank-pro
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NODE_ENV
+        value: production

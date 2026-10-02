@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Transaction Details | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>ParaBank Pro</h1><span class="tag">Transaction window</span></header>
+<main>
+  <h1 style="font-size:22px;margin:4px 0 16px">Transaction Details</h1>
+  <div class="card" id="details" data-testid="transaction-details"><span class="spinner"></span>Loading transaction...</div>
+  <div class="actions"><button class="secondary" type="button" onclick="window.close()">Close Window</button></div>
+</main>
+<script>
+  const id = new URLSearchParams(location.search).get('id');
+  const box = document.getElementById('details');
+  const fmt = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  async function load() {
+    let txId = id;
+    if (!txId) {
+      const latest = await fetch('/api/transactions?pageSize=1').then((r) => r.json());
+      txId = latest.data?.[0]?.transactionId;
+    }
+    const res = await fetch('/api/transactions/' + encodeURIComponent(txId));
+    const json = await res.json();
+    if (!res.ok) {
+      box.innerHTML = '<div class="alert danger">' + json.message + '</div>';
+      return;
+    }
+    const t = json.data;
+    document.title = t.transactionId + ' | Transaction Details | ParaBank Pro';
+    const rows = [
+      ['Transaction ID', t.transactionId], ['Date', new Date(t.date).toLocaleString()], ['Description', t.description],
+      ['Type', t.type], ['Amount', (t.direction === 'DEBIT' ? '-' : '+') + fmt(t.amount)], ['Account', t.accountId],
+      ['Status', t.status], ['Balance After', fmt(t.balanceAfter)], ['Reference', t.reference || '—'],
+    ];
+    box.innerHTML = '<dl style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin:0">' + rows.map(([k]) => '<dt class="muted">' + k + '</dt><dd style="margin:0;font-weight:600" data-field="' + k + '"></dd>').join('') + '</dl>';
+    rows.forEach(([k, v]) => (box.querySelector('[data-field="' + k + '"]').textContent = v));
+  }
+  load();
+</script>
+</body>
+</html>

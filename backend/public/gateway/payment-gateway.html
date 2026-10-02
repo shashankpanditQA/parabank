@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Card Payment | ParaBank Secure Gateway</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+  <style> body { background: #fff; } main { padding: 16px; } </style>
+</head>
+<body>
+<main>
+  <div class="card" style="margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 id="gateway-title">Card Payment</h2>
+      <span class="badge ok">🔒 256-bit TLS</span>
+    </div>
+    <p class="muted small" id="gateway-summary">Paying <strong id="pay-amount">$0.00</strong> to <strong id="pay-merchant">Merchant</strong></p>
+
+    <form id="card-form" novalidate>
+      <label for="cardNumber">Card Number</label>
+      <input id="cardNumber" name="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="23" />
+      <div class="error" id="cardNumber-error" role="alert"></div>
+      <div class="row">
+        <div>
+          <label for="expiry">Expiry Date</label>
+          <input id="expiry" name="expiry" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" />
+          <div class="error" id="expiry-error" role="alert"></div>
+        </div>
+        <div>
+          <label for="cvv">CVV</label>
+          <input id="cvv" name="cvv" type="password" inputmode="numeric" placeholder="123" maxlength="4" autocomplete="cc-csc" />
+          <div class="error" id="cvv-error" role="alert"></div>
+        </div>
+      </div>
+      <label for="cardHolder">Name on Card</label>
+      <input id="cardHolder" name="cardHolder" placeholder="JOHN CARTER" autocomplete="cc-name" />
+      <div class="error" id="cardHolder-error" role="alert"></div>
+      <div class="actions">
+        <button type="submit" class="primary" id="pay-now">Pay Now</button>
+        <span class="muted small">Test card: 4111 1111 1111 1111</span>
+      </div>
+    </form>
+
+    <section id="otp-section" hidden>
+      <h3>Verify it's you</h3>
+      <p class="muted small">Your bank sent a one-time password to your registered mobile number.</p>
+      <div class="frame-label">Nested frame: OTP verification</div>
+      <iframe id="otp-frame" name="otp-frame" data-testid="otp-frame" title="OTP Verification" height="190"></iframe>
+    </section>
+
+    <div id="status" role="status" aria-live="polite"></div>
+    <pre class="json" id="gateway-response" data-testid="gateway-response" hidden></pre>
+  </div>
+</main>
+<script>
+  const params = new URLSearchParams(location.search);
+  const mode = params.get('mode') || 'simple'; // simple | otp
+  const amount = Number(params.get('amount') || (mode === 'otp' ? 250 : 49.99));
+  const merchant = params.get('merchant') || 'ParaBank Lab Store';
+  const reference = params.get('ref') || '';
+  const fmt = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('pay-amount').textContent = fmt(amount);
+  document.getElementById('pay-merchant').textContent = merchant;
+  document.body.dataset.mode = mode;
+
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $('status');
+  let cardDetails = null;
+
+  $('cardNumber').addEventListener('input', (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 19);
+    e.target.value = digits.replace(/(.{4})/g, '$1 ').trim();
+  });
+  $('expiry').addEventListener('input', (e) => {
+    let v = e.target.value.replace(/[^\d]/g, '').slice(0, 4);
+    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    e.target.value = v;
+  });
+
+  function luhn(num) {
+    let sum = 0, alt = false;
+    for (let i = num.length - 1; i >= 0; i--) {
+      let n = +num[i];
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n; alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+
+  function validate() {
+    const errors = {};
+    const num = $('cardNumber').value.replace(/\s/g, '');
+    if (!num) errors.cardNumber = 'Card number is required';
+    else if (!/^\d{13,19}$/.test(num) || !luhn(num)) errors.cardNumber = 'Enter a valid card number';
+    const exp = $('expiry').value;
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(exp)) errors.expiry = 'Use MM/YY';
+    if (!/^\d{3,4}$/.test($('cvv').value)) errors.cvv = 'CVV must be 3 or 4 digits';
+    if (!$('cardHolder').value.trim()) errors.cardHolder = 'Name on card is required';
+    for (const f of ['cardNumber', 'expiry', 'cvv', 'cardHolder']) {
+      $(f + '-error').textContent = errors[f] || '';
+      $(f).setAttribute('aria-invalid', errors[f] ? 'true' : 'false');
+    }
+    return Object.keys(errors).length === 0;
+  }
+
+  function show(kind, html) {
+    statusEl.innerHTML = '<div class="alert ' + kind + '">' + html + '</div>';
+  }
+
+  function notifyHost(message) {
+    // Reach the top-level page (SPA or checkout popup). The checkout popup relays it to its opener.
+    try { window.top.postMessage(message, location.origin); } catch (e) { /* ignore */ }
+    if (window.parent !== window.top) {
+      try { window.parent.postMessage(message, location.origin); } catch (e) { /* ignore */ }
+    }
+  }
+
+  async function submitPayment(otp) {
+    const body = {
+      channel: 'GATEWAY',
+      cardNumber: cardDetails.cardNumber,
+      expiry: cardDetails.expiry,
+      cvv: cardDetails.cvv,
+      cardHolder: cardDetails.cardHolder,
+      amount,
+      merchant,
+      reference,
+    };
+    if (otp) body.otp = otp;
+    $('pay-now').disabled = true;
+    show('info', '<span class="spinner"></span>Processing Payment...');
+    const started = performance.now();
+    try {
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      let json;
+      try { json = JSON.parse(text); } catch { json = { success: false, errorCode: 'INVALID_JSON', message: 'The server returned invalid JSON.' }; }
+      const elapsed = Math.round(performance.now() - started);
+      $('gateway-response').hidden = false;
+      $('gateway-response').textContent = JSON.stringify(json, null, 2);
+      if (res.ok && json.success) {
+        show('success', '<strong>Payment Successful</strong> — Payment ID <span data-testid="payment-id">' + json.paymentId + '</span>');
+        $('card-form').hidden = true;
+        $('otp-section').hidden = true;
+      } else {
+        show('danger', '<strong>Payment Failed</strong> — ' + (json.message || 'Unknown error') + ' <span class="badge bad">' + (json.errorCode || res.status) + '</span>');
+        if (json.errorCode === 'INVALID_OTP') {
+          $('otp-frame').contentWindow?.postMessage({ type: 'parabank:otp-error', message: json.message }, location.origin);
+        }
+        $('pay-now').disabled = false;
+      }
+      notifyHost({ type: 'parabank:payment', ok: res.ok && !!json.success, status: res.status, elapsedMs: elapsed, request: { method: 'POST', url: '/api/payments', body: { ...body, cardNumber: '•••• ' + body.cardNumber.slice(-4), cvv: '•••' } }, body: json });
+    } catch (err) {
+      show('danger', '<strong>Network Error</strong> — Could not reach the payment server.');
+      notifyHost({ type: 'parabank:payment', ok: false, status: 0, body: { success: false, errorCode: 'NETWORK_ERROR', message: String(err) } });
+      $('pay-now').disabled = false;
+    }
+  }
+
+  $('card-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    cardDetails = {
+      cardNumber: $('cardNumber').value.replace(/\s/g, ''),
+      expiry: $('expiry').value,
+      cvv: $('cvv').value,
+      cardHolder: $('cardHolder').value.trim(),
+    };
+    if (mode === 'otp') {
+      $('otp-section').hidden = false;
+      $('otp-frame').src = '/payment-gateway/otp?amount=' + encodeURIComponent(amount) + '&merchant=' + encodeURIComponent(merchant);
+      show('info', 'Card details captured. Enter the OTP to continue.');
+      $('pay-now').disabled = true;
+    } else {
+      submitPayment(null);
+    }
+  });
+
+  // Messages from the nested OTP frame
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.type !== 'parabank:otp-submitted') return;
+    const ok = window.confirm('Confirm payment of ' + fmt(amount) + ' to ' + merchant + ' with card ending ' + cardDetails.cardNumber.slice(-4) + '?');
+    if (!ok) {
+      show('danger', 'Payment cancelled by user.');
+      $('pay-now').disabled = false;
+      notifyHost({ type: 'parabank:payment', ok: false, status: 0, body: { success: false, errorCode: 'CANCELLED', message: 'Payment cancelled by user' } });
+      return;
+    }
+    submitPayment(e.data.otp);
+  });
+</script>
+</body>
+</html>

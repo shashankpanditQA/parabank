@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Inner Frame - Level 2</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+  <style> body { background: #fdf2f8; } main { padding: 12px; } </style>
+</head>
+<body>
+<main>
+  <h2>Level 2 — Appointment</h2>
+  <label for="appointment-date">Appointment Date</label>
+  <input id="appointment-date" type="date" />
+  <div class="actions"><button class="primary" id="book" type="button">Book Appointment</button></div>
+  <p id="booking" role="status"></p>
+</main>
+<script>
+  document.getElementById('book').addEventListener('click', () => {
+    const d = document.getElementById('appointment-date').value;
+    document.getElementById('booking').textContent = d ? 'Appointment booked for ' + d : 'Please choose a date';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account Statement | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>ParaBank Pro</h1><span class="tag">Statement window</span></header>
+<main>
+  <h1 style="font-size:22px;margin:4px 0 16px">Account Statement</h1>
+  <div class="card">
+    <label for="account-select">Account</label>
+    <select id="account-select" aria-label="Account"></select>
+    <div class="row" style="margin-top:10px">
+      <div class="summary"><span>Current Balance</span><strong id="current-balance" data-testid="statement-balance">—</strong></div>
+      <div class="summary"><span>Statement Date</span><strong id="statement-date"></strong></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Recent Activity</h2>
+    <div id="state" class="muted"><span class="spinner"></span>Loading statement...</div>
+    <table id="statement-table" data-testid="statement-table" hidden>
+      <thead><tr><th>Date</th><th>Transaction ID</th><th>Description</th><th>Status</th><th class="num">Amount</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="actions">
+    <a id="download-link" href="#"><button class="secondary" type="button">Download PDF</button></a>
+    <button class="secondary" type="button" onclick="window.print()">Print</button>
+    <button class="secondary" type="button" onclick="window.close()">Close Window</button>
+  </div>
+</main>
+<script>
+  const fmt = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const params = new URLSearchParams(location.search);
+  document.getElementById('statement-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const state = document.getElementById('state');
+  const select = document.getElementById('account-select');
+
+  async function load(accountId) {
+    state.hidden = false;
+    state.innerHTML = '<span class="spinner"></span>Loading statement...';
+    const [acc, txs] = await Promise.all([
+      fetch('/api/accounts/' + accountId).then((r) => r.json()),
+      fetch('/api/transactions?pageSize=15&accountId=' + accountId).then((r) => r.json()),
+    ]);
+    document.getElementById('current-balance').textContent = fmt(acc.data.currentBalance);
+    document.getElementById('download-link').href = '/api/downloads/statement?accountId=' + accountId;
+    const tbody = document.querySelector('#statement-table tbody');
+    tbody.innerHTML = '';
+    for (const t of txs.data) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + t.date.slice(0, 10) + '</td><td>' + t.transactionId + '</td><td></td><td>' + t.status + '</td><td class="num">' + fmt(t.signedAmount) + '</td>';
+      tr.children[2].textContent = t.description;
+      tbody.appendChild(tr);
+    }
+    document.getElementById('statement-table').hidden = false;
+    state.hidden = true;
+  }
+
+  fetch('/api/accounts').then(async (r) => {
+    if (r.status === 401) {
+      state.innerHTML = '<div class="alert danger">Please log in to the main banking window first.</div>';
+      return;
+    }
+    const json = await r.json();
+    for (const a of json.data) {
+      const o = document.createElement('option');
+      o.value = a.accountNumber;
+      o.textContent = a.accountNumber + ' — ' + a.accountType;
+      select.appendChild(o);
+    }
+    const initial = params.get('account') || json.data[0]?.accountNumber;
+    select.value = initial;
+    select.addEventListener('change', () => load(select.value));
+    load(initial);
+  });
+</script>
+</body>
+</html>

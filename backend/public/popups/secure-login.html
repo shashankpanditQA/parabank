@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Secure Banking Portal | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>Secure Banking Portal</h1><span class="tag">Isolated popup session</span></header>
+<main>
+  <section id="login-view" class="card" style="max-width:420px;margin:24px auto">
+    <h2>Sign in to Secure Banking</h2>
+    <p class="muted small">This portal uses its own token (sessionStorage) and does not affect the main window session.</p>
+    <form id="login-form" novalidate>
+      <label for="portal-username">Username</label>
+      <input id="portal-username" name="username" autocomplete="username" />
+      <label for="portal-password">Password</label>
+      <input id="portal-password" name="password" type="password" autocomplete="current-password" />
+      <div class="actions"><button class="primary" type="submit" id="portal-login">Login</button></div>
+      <div id="login-error" role="alert"></div>
+    </form>
+  </section>
+
+  <section id="dashboard-view" hidden>
+    <h1 style="font-size:22px">Secure Dashboard</h1>
+    <p>Welcome, <strong id="portal-name" data-testid="portal-user"></strong> <span class="badge ok" id="portal-role"></span></p>
+    <div class="card">
+      <h2>Your Accounts</h2>
+      <table data-testid="portal-accounts">
+        <thead><tr><th>Account</th><th>Type</th><th class="num">Balance</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="actions"><button class="secondary" id="portal-logout" type="button">Sign out</button></div>
+  </section>
+</main>
+<script>
+  const KEY = 'parabank.portal.token';
+  const fmt = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const $ = (id) => document.getElementById(id);
+
+  async function showDashboard(token, name, role) {
+    const res = await fetch('/api/accounts', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) {
+      sessionStorage.removeItem(KEY);
+      $('login-error').innerHTML = '<div class="alert danger">Session ended. Please log in again.</div>';
+      return;
+    }
+    const json = await res.json();
+    $('portal-name').textContent = name;
+    $('portal-role').textContent = role;
+    const tbody = document.querySelector('[data-testid="portal-accounts"] tbody');
+    tbody.innerHTML = json.data.map((a) => '<tr><td>' + a.accountNumber + '</td><td>' + a.accountType + '</td><td class="num">' + fmt(a.currentBalance) + '</td></tr>').join('');
+    $('login-view').hidden = true;
+    $('dashboard-view').hidden = false;
+    document.title = 'Secure Dashboard | ParaBank Pro';
+  }
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('login-error').innerHTML = '';
+    $('portal-login').disabled = true;
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('portal-username').value, password: $('portal-password').value, issueCookie: false }),
+    });
+    const json = await res.json();
+    $('portal-login').disabled = false;
+    if (!res.ok) {
+      $('login-error').innerHTML = '<div class="alert danger">' + json.message + '</div>';
+      return;
+    }
+    if (json.role !== 'CUSTOMER') {
+      $('login-error').innerHTML = '<div class="alert danger">The secure portal is for customers only.</div>';
+      return;
+    }
+    sessionStorage.setItem(KEY, JSON.stringify({ token: json.sessionId, name: json.fullName, role: json.role }));
+    showDashboard(json.sessionId, json.fullName, json.role);
+  });
+
+  $('portal-logout').addEventListener('click', async () => {
+    const saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+    if (saved) await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + saved.token } });
+    sessionStorage.removeItem(KEY);
+    location.reload();
+  });
+
+  const saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+  if (saved) showDashboard(saved.token, saved.name, saved.role);
+</script>
+</body>
+</html>

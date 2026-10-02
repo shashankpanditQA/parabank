@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTP Verification | ParaBank Secure Gateway</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+  <style> body { background: #f0fdfa; } main { padding: 12px 14px; } </style>
+</head>
+<body>
+<main>
+  <h2 style="font-size:15px">One-Time Password</h2>
+  <form id="otp-form" novalidate>
+    <label for="otp">Enter OTP</label>
+    <input id="otp" name="otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" />
+    <div class="error" id="otp-error" role="alert"></div>
+    <div class="actions">
+      <button type="submit" class="primary">Verify OTP</button>
+      <span class="muted small">Demo OTP: <strong>123456</strong></span>
+    </div>
+  </form>
+  <div id="otp-status" role="status"></div>
+</main>
+<script>
+  const form = document.getElementById('otp-form');
+  const input = document.getElementById('otp');
+  const err = document.getElementById('otp-error');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const otp = input.value.trim();
+    if (!/^\d{6}$/.test(otp)) {
+      err.textContent = 'OTP must be 6 digits';
+      return;
+    }
+    err.textContent = '';
+    document.getElementById('otp-status').innerHTML = '<div class="alert info">OTP submitted for verification</div>';
+    window.parent.postMessage({ type: 'parabank:otp-submitted', otp }, location.origin);
+  });
+  window.addEventListener('message', (e) => {
+    if (e.origin === location.origin && e.data?.type === 'parabank:otp-error') {
+      err.textContent = 'Invalid OTP. Please try again.';
+      document.getElementById('otp-status').innerHTML = '';
+      input.select();
+    }
+  });
+</script>
+</body>
+</html>

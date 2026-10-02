@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Outer Frame - Level 1</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+  <style> body { background: #eef2ff; } main { padding: 12px; } </style>
+</head>
+<body>
+<main>
+  <h2>Level 1 — Branch Locator</h2>
+  <label for="branch-zip">ZIP Code</label>
+  <input id="branch-zip" placeholder="e.g. 10001" />
+  <div class="frame-label" style="margin-top:12px">Level 2 frame</div>
+  <iframe src="/lab-pages/inner-frame" name="level-2" title="Level 2 frame" data-testid="level-2-frame" height="210"></iframe>
+</main>
+</body>
+</html>

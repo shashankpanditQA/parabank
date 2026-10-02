@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Support Portal | ParaBank Pro</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+</head>
+<body>
+<header class="bar"><div class="logo">P</div><h1>ParaBank Pro</h1><span class="tag">Support window</span></header>
+<main>
+  <h1 style="font-size:22px;margin:4px 0 16px">Support Portal</h1>
+  <div class="row">
+    <div class="card"><h2>Call us</h2><p>1-800-555-0199<br /><span class="muted small">24/7 for lost or stolen cards</span></p></div>
+    <div class="card"><h2>Email</h2><p>support@parabank-pro.example<br /><span class="muted small">Replies within 1 business day</span></p></div>
+  </div>
+  <div class="card">
+    <h2>My Open Tickets</h2>
+    <table data-testid="portal-tickets">
+      <thead><tr><th>Ticket</th><th>Subject</th><th>Priority</th><th>Status</th></tr></thead>
+      <tbody><tr><td colspan="4" class="muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</main>
+<script>
+  fetch('/api/support/tickets').then(async (r) => {
+    const tbody = document.querySelector('[data-testid="portal-tickets"] tbody');
+    if (!r.ok) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">Log in to the main window to see your tickets.</td></tr>';
+      return;
+    }
+    const json = await r.json();
+    tbody.innerHTML = '';
+    for (const t of json.data) {
+      const tr = document.createElement('tr');
+      for (const v of [t.ticketId, t.subject, t.priority, t.status]) {
+        const td = document.createElement('td');
+        td.textContent = v;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    if (!json.data.length) tbody.innerHTML = '<tr><td colspan="4" class="muted">No tickets.</td></tr>';
+  });
+</script>
+</body>
+</html>

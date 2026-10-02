@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Secure Payment Gateway | Card Frame</title>
+  <link rel="stylesheet" href="/lab-pages/lab.css" />
+  <style> body { background: #fff; } main { padding: 14px; } </style>
+</head>
+<body>
+<main>
+  <h2>Secure Payment Gateway</h2>
+  <p class="muted small">This form lives inside an &lt;iframe&gt;. Your page locators cannot see it without <code>frameLocator()</code>.</p>
+  <form id="frame-card-form" novalidate>
+    <label for="cc-number">Card Number</label>
+    <input id="cc-number" placeholder="4111 1111 1111 1111" inputmode="numeric" />
+    <div class="row">
+      <div><label for="cc-expiry">Expiry Date</label><input id="cc-expiry" placeholder="MM/YY" /></div>
+      <div><label for="cc-cvv">CVV</label><input id="cc-cvv" type="password" placeholder="123" /></div>
+    </div>
+    <label for="cc-name">Name</label>
+    <input id="cc-name" placeholder="Name on card" />
+    <label for="cc-save" style="font-weight:400"><input id="cc-save" type="checkbox" style="width:auto" /> Save card for future payments</label>
+    <div class="actions"><button class="primary" type="submit">Pay Now</button><button class="secondary" type="reset">Clear</button></div>
+  </form>
+  <div id="frame-result" role="status" aria-live="polite"></div>
+</main>
+<script>
+  document.getElementById('frame-card-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const num = document.getElementById('cc-number').value.replace(/\s/g, '');
+    const exp = document.getElementById('cc-expiry').value;
+    const cvv = document.getElementById('cc-cvv').value;
+    const name = document.getElementById('cc-name').value.trim();
+    const out = document.getElementById('frame-result');
+    const problems = [];
+    if (!/^\d{16}$/.test(num)) problems.push('Card number must be 16 digits');
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(exp)) problems.push('Expiry must be MM/YY');
+    if (!/^\d{3}$/.test(cvv)) problems.push('CVV must be 3 digits');
+    if (!name) problems.push('Name is required');
+    if (problems.length) {
+      out.innerHTML = '<div class="alert danger" data-testid="frame-error">' + problems.join('<br>') + '</div>';
+      return;
+    }
+    const ref = 'AUTH-' + Math.floor(100000 + Math.random() * 900000);
+    out.innerHTML = '<div class="alert success">Payment details accepted for card ending ' + num.slice(-4) + '. Authorization <span data-testid="auth-code">' + ref + '</span></div>';
+    window.parent.postMessage({ type: 'parabank:card-frame', last4: num.slice(-4), authorization: ref }, location.origin);
+  });
+</script>
+</body>
+</html>
